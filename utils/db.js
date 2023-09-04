@@ -27,4 +27,4 @@ class DBCient {
 }
 
 const dbClient = new DBCient();
-export default dbClient;if
+export default dbClient;
