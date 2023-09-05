@@ -1,81 +1,44 @@
-import express from 'express';
+import { Router } from 'express';
+
 import AppController from '../controllers/AppController';
 import UsersController from '../controllers/UsersController';
 import AuthController from '../controllers/AuthController';
 import FilesController from '../controllers/FilesController';
+import UtilController from '../controllers/UtilController';
 
-function controllerRouting(app) {
-  const router = express.Router();
-  app.use('/', router);
+const router = Router();
 
-  // App Controller
+router.use((request, response, next) => {
+  const paths = ['/connect'];
+  if (!paths.includes(request.path)) {
+    next();
+  } else if (!request.headers.authorization) {
+    response.status(401).json({ error: 'Unauthorized' }).end();
+  } else {
+    next();
+  }
+});
 
-  // should return if Redis is alive and if the DB is alive
-  router.get('/status', (req, res) => {
-    AppController.getStatus(req, res);
-  });
+router.use((request, response, next) => {
+  const paths = ['/disconnect', '/users/me', '/files'];
+  if (!paths.includes(request.path)) {
+    next();
+  } else if (!request.headers['x-token']) {
+    response.status(401).json({ error: 'Unauthorized' }).end();
+  } else {
+    next();
+  }
+});
 
-  // should return the number of users and files in DB
-  router.get('/stats', (req, res) => {
-    AppController.getStats(req, res);
-  });
+router.get('/status', AppController.getStatus);
+router.get('/stats', AppController.getStats);
+router.post('/users', UsersController.postNew);
+router.get('/connect', AuthController.getConnect);
+router.get('/disconnect', AuthController.getDisconnect);
+router.post('/files', FilesController.postUpload);
+router.get('/files/:id', FilesController.getShow);
+router.get('/files', FilesController.getIndex);
 
-  // User Controller
-
-  // should create a new user in DB
-  router.post('/users', (req, res) => {
-    UsersController.postNew(req, res);
-  });
-
-  // should retrieve the user base on the token used
-  router.get('/users/me', (req, res) => {
-    UsersController.getMe(req, res);
-  });
-
-  // Auth Controller
-
-  // should sign-in the user by generating a new authentication token
-  router.get('/connect', (req, res) => {
-    AuthController.getConnect(req, res);
-  });
-
-  // should sign-out the user based on the token
-  router.get('/disconnect', (req, res) => {
-    AuthController.getDisconnect(req, res);
-  });
-
-  // Files Controller
-
-  // should create a new file in DB and in disk
-  router.post('/files', (req, res) => {
-    FilesController.postUpload(req, res);
-  });
-
-  // should retrieve the file document based on the ID
-  router.get('/files/:id', (req, res) => {
-    FilesController.getShow(req, res);
-  });
-
-  // should retrieve all users file documents for a
-  // specific parentId and with pagination
-  router.get('/files', (req, res) => {
-    FilesController.getIndex(req, res);
-  });
-
-  // should set isPublic to true on the file document based on the ID
-  router.put('/files/:id/publish', (req, res) => {
-    FilesController.putPublish(req, res);
-  });
-
-  // should set isPublic to false on the file document based on the ID
-  router.put('/files/:id/unpublish', (req, res) => {
-    FilesController.putUnpublish(req, res);
-  });
-
-  // should return the content of the file document based on the ID
-  router.get('/files/:id/data', (req, res) => {
-    FilesController.getFile(req, res);
-  });
-}
-
-export default controllerRouting;
+router.put('/files/:id/publish', UtilController.token, FilesController.putPublish);
+router.put('/files/:id/unpublish', UtilController.token, FilesController.putUnpublish);
+module.exports = router;
